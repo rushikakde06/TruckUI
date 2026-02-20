@@ -2,31 +2,257 @@ import { useState, useEffect } from "react";
 import {
   Thermometer, Gauge, Activity, CloudRain,
   AlertTriangle, Navigation, Wifi, Zap, X,
-  TrendingUp, MapPin, Clock,
+  TrendingUp, MapPin, Clock, ChevronDown, Droplets, Wind,
+  Truck, AlertCircle,
 } from "lucide-react";
 
-function MapVisualization() {
-  const [truckPos, setTruckPos] = useState(0);
+// Static truck data with Maharashtra routes
+const STATIC_TRUCKS = [
+  {
+    id: "TRK-001",
+    name: "Mercedes Actros",
+    driverId: "DR-101",
+    driverName: "Rajesh Kumar",
+    status: "active",
+    currentTemp: 24,
+    minTemp: 18,
+    maxTemp: 28,
+    tempStatus: "normal",
+    cargoType: "Refrigerated Dairy Products",
+    currentSpeed: 87,
+    speedLimit: 90,
+    location: "Pune to Nashik",
+    coordinates: "18.5204° N, 73.8567° E",
+    eta: "3h 24m",
+    delayRisk: 38,
+    routePoints: [
+      [80, 380], [140, 350], [200, 320], [280, 280],
+      [350, 250], [420, 220], [500, 190], [580, 160],
+      [650, 130], [720, 100],
+    ],
+    startLocation: "Pune",
+    endLocation: "Nashik",
+    anomalyScore: 8.3,
+    weatherZones: [
+      { x: 500, y: 150, r: 80, type: "storm", intensity: "high" },
+      { x: 600, y: 200, r: 60, type: "rain", intensity: "medium" },
+    ],
+    deviationPoints: [[280, 310], [320, 290], [350, 250]],
+  },
+  {
+    id: "TRK-002",
+    name: "Volvo FH16",
+    driverId: "DR-102",
+    driverName: "Amit Singh",
+    status: "active",
+    currentTemp: 26,
+    minTemp: 15,
+    maxTemp: 30,
+    tempStatus: "warning",
+    cargoType: "Perishable Vegetables",
+    currentSpeed: 75,
+    speedLimit: 90,
+    location: "Mumbai to Aurangabad",
+    coordinates: "19.0760° N, 72.8777° E",
+    eta: "5h 12m",
+    delayRisk: 62,
+    routePoints: [
+      [100, 420], [160, 390], [220, 360], [290, 320],
+      [350, 280], [410, 240], [460, 210], [520, 180],
+      [580, 155], [640, 135],
+    ],
+    startLocation: "Mumbai",
+    endLocation: "Aurangabad",
+    anomalyScore: 6.2,
+    weatherZones: [
+      { x: 580, y: 140, r: 70, type: "rain", intensity: "medium" },
+    ],
+    deviationPoints: [],
+  },
+  {
+    id: "TRK-003",
+    name: "Scania R440",
+    driverId: "DR-103",
+    driverName: "Vikram Patel",
+    status: "active",
+    currentTemp: 18,
+    minTemp: 10,
+    maxTemp: 25,
+    tempStatus: "normal",
+    cargoType: "Pharmaceutical (Temperature Control)",
+    currentSpeed: 92,
+    speedLimit: 90,
+    location: "Belgaum to Gulbarga",
+    coordinates: "15.8691° N, 74.5057° E",
+    eta: "2h 45m",
+    delayRisk: 28,
+    routePoints: [
+      [120, 400], [180, 370], [250, 340], [320, 310],
+      [400, 280], [480, 250], [560, 220], [640, 190],
+      [700, 160],
+    ],
+    startLocation: "Belgaum",
+    endLocation: "Gulbarga",
+    anomalyScore: 3.1,
+    weatherZones: [
+      { x: 400, y: 280, r: 50, type: "wind", intensity: "low" },
+    ],
+    deviationPoints: [],
+  },
+  {
+    id: "TRK-004",
+    name: "MAN TGX",
+    driverId: "DR-104",
+    driverName: "Suresh Desai",
+    status: "active",
+    currentTemp: 22,
+    minTemp: 16,
+    maxTemp: 26,
+    tempStatus: "normal",
+    cargoType: "Fresh Fruits",
+    currentSpeed: 82,
+    speedLimit: 90,
+    location: "Kolhapur to Satara",
+    coordinates: "17.6869° N, 73.7563° E",
+    eta: "1h 50m",
+    delayRisk: 15,
+    routePoints: [
+      [150, 350], [210, 320], [280, 290], [350, 260],
+      [420, 240], [500, 220], [580, 200], [650, 180],
+    ],
+    startLocation: "Kolhapur",
+    endLocation: "Satara",
+    anomalyScore: 2.5,
+    weatherZones: [
+      { x: 300, y: 290, r: 40, type: "rain", intensity: "low" },
+    ],
+    deviationPoints: [],
+  },
+  {
+    id: "TRK-005",
+    name: "DAF XF95",
+    driverId: "DR-105",
+    driverName: "Mohan Joshi",
+    status: "active",
+    currentTemp: 28,
+    minTemp: 20,
+    maxTemp: 32,
+    tempStatus: "critical",
+    cargoType: "Frozen Foods",
+    currentSpeed: 85,
+    speedLimit: 90,
+    location: "Nagpur to Amravati",
+    coordinates: "21.1458° N, 79.0882° E",
+    eta: "2h 15m",
+    delayRisk: 45,
+    routePoints: [
+      [130, 360], [190, 330], [270, 300], [340, 270],
+      [410, 240], [490, 210], [570, 185], [650, 160],
+      [720, 140],
+    ],
+    startLocation: "Nagpur",
+    endLocation: "Amravati",
+    anomalyScore: 9.1,
+    weatherZones: [
+      { x: 450, y: 220, r: 75, type: "storm", intensity: "critical" },
+      { x: 600, y: 170, r: 50, type: "rain", intensity: "high" },
+    ],
+    deviationPoints: [[340, 300], [380, 280]],
+  },
+];
+
+function MapVisualization({ trucks, selectedTruckId }: { trucks: typeof STATIC_TRUCKS; selectedTruckId: string }) {
+  const [truckPositions, setTruckPositions] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTruckPos(p => (p + 0.3) % 100);
+      setTruckPositions(prev => {
+        const newPositions: Record<string, number> = {};
+        trucks.forEach(truck => {
+          newPositions[truck.id] = (prev[truck.id] || 0 + Math.random() * 10) % 100;
+        });
+        return newPositions;
+      });
     }, 100);
     return () => clearInterval(interval);
-  }, []);
+  }, [trucks]);
 
-  // Interpolate truck along route
-  const routePoints = [
-    [100, 420], [160, 390], [220, 360], [290, 320],
-    [350, 280], [410, 240], [460, 210], [520, 180],
-    [580, 155], [640, 135], [700, 110],
-  ];
-  const idx = Math.floor((truckPos / 100) * (routePoints.length - 1));
-  const progress = (truckPos / 100) * (routePoints.length - 1) - idx;
-  const p0 = routePoints[Math.min(idx, routePoints.length - 1)];
-  const p1 = routePoints[Math.min(idx + 1, routePoints.length - 1)];
-  const tx = p0[0] + (p1[0] - p0[0]) * progress;
-  const ty = p0[1] + (p1[1] - p0[1]) * progress;
+  // Get truck color based on status
+  const getTruckColor = (truck: typeof STATIC_TRUCKS[0]) => {
+    if (truck.tempStatus === "critical") return "#DC2626";
+    if (truck.tempStatus === "warning") return "#F59E0B";
+    return "#16A34A";
+  };
+
+  // Render all trucks on map
+  const renderTruck = (truck: typeof STATIC_TRUCKS[0]) => {
+    const truckPos = truckPositions[truck.id] || 0;
+    const routePoints = truck.routePoints;
+    const idx = Math.floor((truckPos / 100) * (routePoints.length - 1));
+    const progress = (truckPos / 100) * (routePoints.length - 1) - idx;
+    const p0 = routePoints[Math.min(idx, routePoints.length - 1)];
+    const p1 = routePoints[Math.min(idx + 1, routePoints.length - 1)];
+    const tx = p0[0] + (p1[0] - p0[0]) * progress;
+    const ty = p0[1] + (p1[1] - p0[1]) * progress;
+
+    const truckColor = getTruckColor(truck);
+    const isSelected = truck.id === selectedTruckId;
+
+    return (
+      <g key={truck.id}>
+        {/* Truck marker */}
+        <g transform={`translate(${tx - 14}, ${ty - 14})`}>
+          {/* Outer ring for selected truck */}
+          {isSelected && (
+            <circle cx="14" cy="14" r="24" fill="none" stroke={truckColor} strokeWidth="2.5" opacity="0.6" />
+          )}
+
+          <circle cx="14" cy="14" r="18" fill="rgba(255,255,255,0.1)" />
+          <circle cx="14" cy="14" r="14" fill={truckColor} stroke="white" strokeWidth="2.5" />
+          <text x="14" y="19" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">🚛</text>
+        </g>
+
+        {/* Pulsing ring (more visible for selected) */}
+        {isSelected && (
+          <circle cx={tx} cy={ty} r="22" fill="none" stroke={truckColor} strokeWidth="2" opacity="0.8">
+            <animate attributeName="r" values="18;32;18" dur="1.5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.8;0;0.8" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+        )}
+
+        {/* Truck ID label */}
+        <text
+          x={tx}
+          y={ty - 35}
+          textAnchor="middle"
+          fill={truckColor}
+          fontSize="10"
+          fontFamily="Inter"
+          fontWeight="700"
+          style={{ textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}
+        >
+          {truck.id}
+        </text>
+
+        {/* Route path for this truck (faint) */}
+        {!isSelected && (
+          <polyline
+            points={truck.routePoints.map(([x, y]) => `${x},${y}`).join(" ")}
+            fill="none"
+            stroke={truckColor}
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="4 2"
+            opacity="0.2"
+          />
+        )}
+      </g>
+    );
+  };
+
+  // Get selected truck for showing its detailed route
+  const selectedTruck = trucks.find(t => t.id === selectedTruckId);
 
   return (
     <svg
@@ -45,23 +271,17 @@ function MapVisualization() {
       </defs>
       <rect width="800" height="500" fill="url(#mapgrid)" />
 
-      {/* Road network (background roads) */}
-      {/* Horizontal roads */}
+      {/* Road network */}
       <line x1="0" y1="100" x2="800" y2="100" stroke="rgba(148,163,184,0.15)" strokeWidth="3" />
       <line x1="0" y1="200" x2="800" y2="200" stroke="rgba(148,163,184,0.1)" strokeWidth="2" />
       <line x1="0" y1="300" x2="800" y2="300" stroke="rgba(148,163,184,0.12)" strokeWidth="2" />
       <line x1="0" y1="400" x2="800" y2="400" stroke="rgba(148,163,184,0.1)" strokeWidth="2" />
-      {/* Vertical roads */}
       <line x1="150" y1="0" x2="150" y2="500" stroke="rgba(148,163,184,0.1)" strokeWidth="2" />
       <line x1="300" y1="0" x2="300" y2="500" stroke="rgba(148,163,184,0.12)" strokeWidth="2" />
       <line x1="450" y1="0" x2="450" y2="500" stroke="rgba(148,163,184,0.1)" strokeWidth="2" />
       <line x1="600" y1="0" x2="600" y2="500" stroke="rgba(148,163,184,0.15)" strokeWidth="3" />
-      {/* Diagonal connector roads */}
-      <line x1="0" y1="300" x2="150" y2="200" stroke="rgba(148,163,184,0.08)" strokeWidth="2" />
-      <line x1="300" y1="400" x2="450" y2="300" stroke="rgba(148,163,184,0.08)" strokeWidth="2" />
-      <line x1="450" y1="200" x2="600" y2="100" stroke="rgba(148,163,184,0.1)" strokeWidth="2" />
 
-      {/* City blocks (buildings simulation) */}
+      {/* City blocks */}
       {[
         [30, 120, 90, 60], [170, 120, 100, 60], [340, 120, 80, 60],
         [30, 220, 100, 60], [170, 220, 90, 60], [340, 220, 90, 60], [490, 220, 80, 60],
@@ -71,85 +291,78 @@ function MapVisualization() {
         <rect key={i} x={x} y={y} width={w} height={h} fill="rgba(30,41,59,0.8)" rx="2" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
       ))}
 
-      {/* Weather Risk Zones */}
-      {/* Storm zone - large orange */}
-      <circle cx="590" cy="155" r="90" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.3)" strokeWidth="1.5" strokeDasharray="6 3" />
-      <circle cx="590" cy="155" r="55" fill="rgba(245,158,11,0.15)" stroke="rgba(245,158,11,0.25)" strokeWidth="1" />
-      <text x="590" y="250" textAnchor="middle" fill="rgba(245,158,11,0.8)" fontSize="9" fontFamily="Inter" fontWeight="700">⚡ STORM ZONE</text>
+      {/* Weather Risk Zones for selected truck */}
+      {selectedTruck && selectedTruck.weatherZones.map((zone, zi) => {
+        const colors = {
+          storm: { fill: "rgba(245,158,11,0.12)", stroke: "rgba(245,158,11,0.3)", label: "⚡" },
+          rain: { fill: "rgba(66,165,245,0.12)", stroke: "rgba(66,165,245,0.3)", label: "🌧️" },
+          wind: { fill: "rgba(177,245,66,0.12)", stroke: "rgba(177,245,66,0.3)", label: "💨" },
+        };
+        const color = colors[zone.type as keyof typeof colors];
+        return (
+          <g key={`zone-${zi}`}>
+            <circle cx={zone.x} cy={zone.y} r={zone.r} fill={color.fill} stroke={color.stroke} strokeWidth="1.5" strokeDasharray="6 3" />
+            <circle cx={zone.x} cy={zone.y} r={zone.r * 0.6} fill={color.fill} stroke={color.stroke} strokeWidth="1" opacity="0.7" />
+          </g>
+        );
+      })}
 
-      {/* High risk zone - red, smaller */}
-      <circle cx="655" cy="130" r="50" fill="rgba(220,38,38,0.15)" stroke="rgba(220,38,38,0.35)" strokeWidth="1.5" strokeDasharray="4 2" />
-      <circle cx="655" cy="130" r="25" fill="rgba(220,38,38,0.2)" />
-      <text x="655" y="190" textAnchor="middle" fill="rgba(220,38,38,0.8)" fontSize="9" fontFamily="Inter" fontWeight="700">⚠ CRITICAL</text>
+      {/* Planned route for selected truck */}
+      {selectedTruck && (
+        <>
+          <polyline
+            points={selectedTruck.routePoints.map(([x, y]) => `${x},${y}`).join(" ")}
+            fill="none"
+            stroke={getTruckColor(selectedTruck)}
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.3"
+          />
+          <polyline
+            points={selectedTruck.routePoints.map(([x, y]) => `${x},${y}`).join(" ")}
+            fill="none"
+            stroke={getTruckColor(selectedTruck)}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="12 4"
+          />
 
-      {/* Medium risk zone */}
-      <ellipse cx="350" cy="280" rx="70" ry="40" fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.2)" strokeWidth="1" strokeDasharray="5 3" />
+          {/* Deviated route if exists */}
+          {selectedTruck.deviationPoints.length > 0 && (
+            <>
+              <polyline
+                points={selectedTruck.deviationPoints.map(([x, y]) => `${x},${y}`).join(" ")}
+                fill="none"
+                stroke="rgba(220,38,38,0.5)"
+                strokeWidth="5"
+                strokeLinecap="round"
+              />
+              <polyline
+                points={selectedTruck.deviationPoints.map(([x, y]) => `${x},${y}`).join(" ")}
+                fill="none"
+                stroke="#DC2626"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="6 3"
+              />
+              <text x={selectedTruck.deviationPoints[1][0]} y={selectedTruck.deviationPoints[1][1] + 20} fill="#DC2626" fontSize="9" fontFamily="Inter" fontWeight="700" textAnchor="middle">⚠ DEVIATION</text>
+            </>
+          )}
 
-      {/* Planned route (green line) */}
-      <polyline
-        points="100,420 160,390 220,360 290,320 350,280 410,240 460,210 520,180 580,155 640,135 700,110"
-        fill="none"
-        stroke="rgba(22,163,74,0.4)"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <polyline
-        points="100,420 160,390 220,360 290,320 350,280 410,240 460,210 520,180 580,155 640,135 700,110"
-        fill="none"
-        stroke="#16A34A"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray="12 4"
-      />
+          {/* Start marker */}
+          <circle cx={selectedTruck.routePoints[0][0]} cy={selectedTruck.routePoints[0][1]} r="8" fill={getTruckColor(selectedTruck)} stroke="white" strokeWidth="2" />
+          <text x={selectedTruck.routePoints[0][0]} y={selectedTruck.routePoints[0][1] + 25} textAnchor="middle" fill={getTruckColor(selectedTruck)} fontSize="9" fontFamily="Inter" fontWeight="700">{selectedTruck.startLocation}</text>
 
-      {/* Deviated route (red - anomaly) */}
-      <polyline
-        points="350,280 380,310 420,330 455,320 460,210"
-        fill="none"
-        stroke="rgba(220,38,38,0.5)"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <polyline
-        points="350,280 380,310 420,330 455,320 460,210"
-        fill="none"
-        stroke="#DC2626"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeDasharray="6 3"
-      />
-      <text x="415" y="345" fill="#DC2626" fontSize="9" fontFamily="Inter" fontWeight="700" textAnchor="middle">⚠ DEVIATION +3.2km</text>
+          {/* End marker */}
+          <circle cx={selectedTruck.routePoints[selectedTruck.routePoints.length - 1][0]} cy={selectedTruck.routePoints[selectedTruck.routePoints.length - 1][1]} r="8" fill="#2563EB" stroke="white" strokeWidth="2" />
+          <text x={selectedTruck.routePoints[selectedTruck.routePoints.length - 1][0]} y={selectedTruck.routePoints[selectedTruck.routePoints.length - 1][1] - 15} textAnchor="middle" fill="#2563EB" fontSize="9" fontFamily="Inter" fontWeight="700">{selectedTruck.endLocation}</text>
+        </>
+      )}
 
-      {/* Start and End markers */}
-      <circle cx="100" cy="420" r="8" fill="#16A34A" stroke="white" strokeWidth="2" />
-      <text x="100" y="445" textAnchor="middle" fill="#16A34A" fontSize="9" fontFamily="Inter" fontWeight="700">LOS ANGELES</text>
-
-      <circle cx="700" cy="110" r="8" fill="#2563EB" stroke="white" strokeWidth="2" />
-      <text x="700" y="95" textAnchor="middle" fill="#2563EB" fontSize="9" fontFamily="Inter" fontWeight="700">SAN FRANCISCO</text>
-
-      {/* Moving Truck marker */}
-      <g transform={`translate(${tx - 14}, ${ty - 14})`}>
-        <circle cx="14" cy="14" r="18" fill="rgba(37,99,235,0.2)" />
-        <circle cx="14" cy="14" r="14" fill="#2563EB" stroke="white" strokeWidth="2.5" />
-        {/* Truck icon path */}
-        <text x="14" y="19" textAnchor="middle" fontSize="12" fill="white">🚛</text>
-      </g>
-
-      {/* Pulsing ring around truck */}
-      <circle cx={tx} cy={ty} r="22" fill="none" stroke="#2563EB" strokeWidth="1.5" opacity="0.5">
-        <animate attributeName="r" values="18;28;18" dur="2s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite" />
-      </circle>
-
-      {/* Waypoint markers */}
-      {[[290, 320, "WP-1"], [460, 210, "WP-2"]].map(([x, y, label], i) => (
-        <g key={i}>
-          <circle cx={x as number} cy={y as number} r="5" fill="rgba(245,158,11,0.8)" stroke="white" strokeWidth="1.5" />
-          <text x={(x as number) + 10} y={(y as number) + 4} fill="rgba(245,158,11,0.9)" fontSize="9" fontFamily="Inter" fontWeight="600">{label}</text>
-        </g>
-      ))}
+      {/* Render selected truck only */}
+      {selectedTruck && renderTruck(selectedTruck)}
 
       {/* Map scale & compass */}
       <g transform="translate(20, 460)">
@@ -164,26 +377,37 @@ function MapVisualization() {
         <circle cx="0" cy="0" r="12" fill="rgba(15,23,42,0.8)" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
         <text x="0" y="-3" textAnchor="middle" fill="white" fontSize="8" fontFamily="Inter" fontWeight="700">N</text>
         <line x1="0" y1="-2" x2="0" y2="-8" stroke="#2563EB" strokeWidth="2" />
-        <line x1="0" y1="2" x2="0" y2="8" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" />
       </g>
     </svg>
   );
 }
 
 export function LiveMapPage() {
+  const [selectedTruckId, setSelectedTruckId] = useState("TRK-001");
+  const selectedTruck = STATIC_TRUCKS.find(t => t.id === selectedTruckId) || STATIC_TRUCKS[0];
+
   const [alerts, setAlerts] = useState([
     { id: 1, text: "AI Prediction: High risk of delay due to storm conditions.", type: "warning", visible: true },
-    { id: 2, text: "Temperature anomaly detected in TRK-001 cargo hold.", type: "critical", visible: true },
+    { id: 2, text: `Temperature anomaly detected in ${selectedTruck.id} cargo hold.`, type: "critical", visible: true },
   ]);
-  const [newAlert, setNewAlert] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setNewAlert(true);
-      setAlerts(prev => [...prev, { id: 3, text: "Route deviation detected — AI suggests alternate via Hwy 101.", type: "info", visible: true }]);
-    }, 4000);
+      const messages = [
+        `Route deviation detected on ${selectedTruck.id} — AI suggests alternate route.`,
+        `Temperature threshold breached for ${selectedTruck.id}: ${selectedTruck.currentTemp}°C`,
+        `Weather alert for ${selectedTruck.id}: Storm approaching on planned route.`,
+      ];
+      setAlerts(prev => [...prev, {
+        id: prev.length + 1,
+        text: messages[Math.floor(Math.random() * messages.length)],
+        type: ["info", "warning", "critical"][Math.floor(Math.random() * 3)] as any,
+        visible: true
+      }]);
+    }, 5000);
     return () => clearTimeout(t);
-  }, []);
+  }, [selectedTruck.id]);
 
   const dismissAlert = (id: number) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, visible: false } : a));
@@ -199,7 +423,7 @@ export function LiveMapPage() {
     <div style={{ display: "flex", height: "calc(100vh - 60px)", fontFamily: "'Inter', sans-serif", position: "relative" }}>
       {/* Map Area */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        {/* Map header */}
+        {/* Map header with truck selector */}
         <div style={{
           position: "absolute", top: 16, left: 16, zIndex: 10,
           display: "flex", alignItems: "center", gap: 8,
@@ -217,6 +441,81 @@ export function LiveMapPage() {
             <div className="live-pulse" style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A" }} />
           </div>
 
+          {/* Truck Selector Dropdown */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{
+                background: "rgba(11,20,38,0.9)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 10,
+                padding: "8px 14px",
+                color: "white",
+                fontSize: 12,
+                fontWeight: 700,
+                display: "flex", alignItems: "center", gap: 8,
+                cursor: "pointer",
+                transition: "border-color 0.3s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = "rgba(37,99,235,0.5)"}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"}
+            >
+              <Truck size={13} color="#7C3AED" />
+              {selectedTruck.id}
+              <ChevronDown size={13} />
+            </button>
+
+            {isDropdownOpen && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, marginTop: 8,
+                background: "rgba(11,20,38,0.95)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(37,99,235,0.3)",
+                borderRadius: 10,
+                padding: "8px",
+                minWidth: 160,
+                zIndex: 20,
+              }}>
+                {STATIC_TRUCKS.map((truck) => (
+                  <button
+                    key={truck.id}
+                    onClick={() => {
+                      setSelectedTruckId(truck.id);
+                      setIsDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      background: truck.id === selectedTruckId ? "rgba(37,99,235,0.2)" : "transparent",
+                      border: "none",
+                      borderRadius: 6,
+                      color: truck.id === selectedTruckId ? "#2563EB" : "#94A3B8",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "background 0.2s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(37,99,235,0.1)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = truck.id === selectedTruckId ? "rgba(37,99,235,0.2)" : "transparent"}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: "50%",
+                        background: truck.tempStatus === "critical" ? "#DC2626" : truck.tempStatus === "warning" ? "#F59E0B" : "#16A34A"
+                      }} />
+                      {truck.id}
+                    </div>
+                    <div style={{ fontSize: 9, color: "#4C5B7A", marginTop: 4 }}>
+                      {truck.driverName}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={{
             background: "rgba(11,20,38,0.9)",
             backdropFilter: "blur(12px)",
@@ -225,7 +524,7 @@ export function LiveMapPage() {
             padding: "8px 14px",
           }}>
             <span style={{ color: "#94A3B8", fontSize: 11 }}>
-              TRK-001 · <span style={{ color: "white", fontWeight: 600 }}>LA → San Francisco</span>
+              {selectedTruck.id} · <span style={{ color: "white", fontWeight: 600 }}>{selectedTruck.startLocation} → {selectedTruck.endLocation}</span>
             </span>
           </div>
         </div>
@@ -259,7 +558,7 @@ export function LiveMapPage() {
         </div>
 
         {/* Alert popups */}
-        <div style={{ position: "absolute", top: 16, right: 340, zIndex: 20, display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
+        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 20, display: "flex", flexDirection: "column", gap: 8, maxWidth: 320 }}>
           {alerts.filter(a => a.visible).map((alert) => {
             const style = alertColors[alert.type];
             const Icon = style.icon;
@@ -294,7 +593,7 @@ export function LiveMapPage() {
           })}
         </div>
 
-        <MapVisualization />
+        <MapVisualization trucks={STATIC_TRUCKS} selectedTruckId={selectedTruckId} />
       </div>
 
       {/* Right Telemetry Panel */}
@@ -316,7 +615,7 @@ export function LiveMapPage() {
             <Activity size={15} color="#7C3AED" />
             <span style={{ color: "white", fontSize: 13, fontWeight: 700 }}>AI Telemetry Panel</span>
           </div>
-          <div style={{ color: "#4C5B7A", fontSize: 11 }}>TRK-001 · Live Data Stream</div>
+          <div style={{ color: "#4C5B7A", fontSize: 11 }}>{selectedTruck.id} · Live Data Stream</div>
         </div>
 
         <div className="scrollbar-thin" style={{ flex: 1, overflow: "auto", padding: "16px 16px" }}>
@@ -333,9 +632,81 @@ export function LiveMapPage() {
           }}>
             <div style={{ fontSize: 22 }}>🚛</div>
             <div>
-              <div style={{ color: "white", fontSize: 12, fontWeight: 700 }}>TRK-001 Mercedes Actros</div>
+              <div style={{ color: "white", fontSize: 12, fontWeight: 700 }}>{selectedTruck.id} {selectedTruck.name}</div>
               <div style={{ color: "#16A34A", fontSize: 10, fontWeight: 600 }}>● ON ROUTE — Active</div>
-              <div style={{ color: "#4C5B7A", fontSize: 10 }}>Driver: J. Martinez</div>
+              <div style={{ color: "#4C5B7A", fontSize: 10 }}>Driver: {selectedTruck.driverName}</div>
+            </div>
+          </div>
+
+          {/* Container Temperature Monitoring */}
+          <div style={{
+            background: selectedTruck.tempStatus === "critical" ? "rgba(220,38,38,0.1)" : selectedTruck.tempStatus === "warning" ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.1)",
+            border: selectedTruck.tempStatus === "critical" ? "1px solid rgba(220,38,38,0.3)" : selectedTruck.tempStatus === "warning" ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(22,163,74,0.3)",
+            borderRadius: 10,
+            padding: "14px",
+            marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <Thermometer size={16} color={selectedTruck.tempStatus === "critical" ? "#DC2626" : selectedTruck.tempStatus === "warning" ? "#F59E0B" : "#16A34A"} />
+              <span style={{
+                color: selectedTruck.tempStatus === "critical" ? "#DC2626" : selectedTruck.tempStatus === "warning" ? "#F59E0B" : "#16A34A",
+                fontSize: 12, fontWeight: 700
+              }}>
+                Cargo Container Temp {selectedTruck.tempStatus === "critical" ? "⚠ CRITICAL" : selectedTruck.tempStatus === "warning" ? "⚠ WARNING" : "✓ NORMAL"}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ color: "#4C5B7A", fontSize: 9, marginBottom: 4 }}>Current</div>
+                <div style={{ color: "white", fontSize: 18, fontWeight: 800 }}>{selectedTruck.currentTemp}°C</div>
+              </div>
+              <div>
+                <div style={{ color: "#4C5B7A", fontSize: 9, marginBottom: 4 }}>Min Threshold</div>
+                <div style={{ color: "#16A34A", fontSize: 14, fontWeight: 700 }}>{selectedTruck.minTemp}°C</div>
+              </div>
+              <div>
+                <div style={{ color: "#4C5B7A", fontSize: 9, marginBottom: 4 }}>Max Threshold</div>
+                <div style={{ color: "#DC2626", fontSize: 14, fontWeight: 700 }}>{selectedTruck.maxTemp}°C</div>
+              </div>
+            </div>
+
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              height: 20,
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 10,
+              padding: "0 8px",
+              marginBottom: 8,
+            }}>
+              <div style={{ fontSize: 10, color: "#4C5B7A", minWidth: 20 }}>{selectedTruck.minTemp}°</div>
+              <div style={{
+                flex: 1,
+                height: 8,
+                background: "rgba(255,255,255,0.1)",
+                borderRadius: 4,
+                position: "relative",
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  position: "absolute",
+                  left: `${((selectedTruck.currentTemp - selectedTruck.minTemp) / (selectedTruck.maxTemp - selectedTruck.minTemp)) * 100}%`,
+                  width: 12,
+                  height: 12,
+                  background: selectedTruck.currentTemp > selectedTruck.maxTemp ? "#DC2626" : selectedTruck.currentTemp < selectedTruck.minTemp ? "#2563EB" : "#16A34A",
+                  borderRadius: 6,
+                  border: "2px solid white",
+                  transform: "translateX(-50%) translateY(-2px)",
+                }} />
+              </div>
+              <div style={{ fontSize: 10, color: "#4C5B7A", minWidth: 20 }}>{selectedTruck.maxTemp}°</div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#4C5B7A" }}>
+              <Droplets size={12} />
+              <span>Cargo: {selectedTruck.cargoType}</span>
             </div>
           </div>
 
@@ -344,10 +715,10 @@ export function LiveMapPage() {
             <div style={{ color: "#4C5B7A", fontSize: 10, fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 8 }}>Live Telemetry</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {[
-                { icon: Gauge, label: "Current Speed", value: "87 km/h", sub: "Limit: 90 km/h", color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
-                { icon: Thermometer, label: "Current Temp", value: "26°C", sub: "Cargo hold temperature", color: "#2563EB", bg: "rgba(37,99,235,0.08)" },
-                { icon: MapPin, label: "Current Location", value: "I-5 North", sub: "38.4° N, 121.8° W", color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
-                { icon: Clock, label: "ETA", value: "3h 24m", sub: "Predicted delay: +38 min", color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                { icon: Gauge, label: "Current Speed", value: `${selectedTruck.currentSpeed} km/h`, sub: `Limit: ${selectedTruck.speedLimit} km/h`, color: selectedTruck.currentSpeed > selectedTruck.speedLimit ? "#F59E0B" : "#16A34A", bg: "rgba(22,163,74,0.08)" },
+                { icon: MapPin, label: "Current Location", value: selectedTruck.location, sub: selectedTruck.coordinates, color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
+                { icon: Clock, label: "ETA", value: selectedTruck.eta, sub: `Predicted delay: +${selectedTruck.delayRisk} min`, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                { icon: Activity, label: "Anomaly Score", value: `${selectedTruck.anomalyScore} / 10`, sub: selectedTruck.anomalyScore > 7 ? "HIGH RISK" : selectedTruck.anomalyScore > 4 ? "MEDIUM RISK" : "LOW RISK", color: selectedTruck.anomalyScore > 7 ? "#DC2626" : selectedTruck.anomalyScore > 4 ? "#F59E0B" : "#16A34A", bg: "rgba(22,163,74,0.08)" },
               ].map((item, i) => (
                 <div key={i} style={{
                   background: item.bg,
@@ -376,26 +747,26 @@ export function LiveMapPage() {
               {[
                 {
                   label: "Temp in 20 min",
-                  value: "33°C",
+                  value: `${selectedTruck.currentTemp + 2}°C`,
                   confidence: 89,
-                  status: "BREACH RISK",
-                  statusColor: "#DC2626",
+                  status: selectedTruck.currentTemp + 2 > selectedTruck.maxTemp ? "BREACH RISK" : "NORMAL",
+                  statusColor: selectedTruck.currentTemp + 2 > selectedTruck.maxTemp ? "#DC2626" : "#16A34A",
                   icon: Thermometer,
                 },
                 {
                   label: "Delay Probability",
-                  value: "73%",
+                  value: `${selectedTruck.delayRisk}%`,
                   confidence: 81,
-                  status: "HIGH",
-                  statusColor: "#F59E0B",
+                  status: selectedTruck.delayRisk > 50 ? "HIGH" : selectedTruck.delayRisk > 30 ? "MEDIUM" : "LOW",
+                  statusColor: selectedTruck.delayRisk > 50 ? "#DC2626" : selectedTruck.delayRisk > 30 ? "#F59E0B" : "#16A34A",
                   icon: CloudRain,
                 },
                 {
                   label: "Anomaly Score",
-                  value: "8.3 / 10",
+                  value: `${selectedTruck.anomalyScore} / 10`,
                   confidence: 94,
-                  status: "ELEVATED",
-                  statusColor: "#7C3AED",
+                  status: selectedTruck.anomalyScore > 7 ? "ELEVATED" : "NORMAL",
+                  statusColor: selectedTruck.anomalyScore > 7 ? "#DC2626" : "#16A34A",
                   icon: Activity,
                 },
               ].map((pred, i) => (
@@ -433,20 +804,22 @@ export function LiveMapPage() {
 
           {/* Risk assessment */}
           <div style={{
-            background: "rgba(220,38,38,0.08)",
-            border: "1px solid rgba(220,38,38,0.2)",
+            background: selectedTruck.anomalyScore > 7 ? "rgba(220,38,38,0.08)" : "rgba(245,158,11,0.08)",
+            border: selectedTruck.anomalyScore > 7 ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(245,158,11,0.2)",
             borderRadius: 10,
             padding: "14px",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <AlertTriangle size={14} color="#DC2626" />
-              <span style={{ color: "#DC2626", fontSize: 12, fontWeight: 700 }}>AI Risk Assessment</span>
+              <AlertTriangle size={14} color={selectedTruck.anomalyScore > 7 ? "#DC2626" : "#F59E0B"} />
+              <span style={{ color: selectedTruck.anomalyScore > 7 ? "#DC2626" : "#F59E0B", fontSize: 12, fontWeight: 700 }}>AI Risk Assessment</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <div style={{ color: "#4C5B7A", fontSize: 9, marginBottom: 3 }}>Overall Risk</div>
-                <div style={{ color: "#DC2626", fontSize: 24, fontWeight: 800, lineHeight: 1 }}>78</div>
-                <div style={{ color: "#4C5B7A", fontSize: 9 }}>/100 HIGH</div>
+                <div style={{ color: selectedTruck.anomalyScore > 7 ? "#DC2626" : "#F59E0B", fontSize: 24, fontWeight: 800, lineHeight: 1 }}>
+                  {Math.round(selectedTruck.anomalyScore * 10)}
+                </div>
+                <div style={{ color: "#4C5B7A", fontSize: 9 }}>/100 {selectedTruck.anomalyScore > 7 ? "HIGH" : "MEDIUM"}</div>
               </div>
               <div>
                 <div style={{ color: "#4C5B7A", fontSize: 9, marginBottom: 3 }}>Confidence</div>
