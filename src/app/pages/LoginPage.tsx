@@ -13,8 +13,8 @@ const features = [
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading: loading, error } = useAuth();
-  const [email, setEmail] = useState("admin@telematicsai.io");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@telematics.ai");
+  const [password, setPassword] = useState("Admin@123");
   const [showPass, setShowPass] = useState(false);
   const [localError, setLocalError] = useState("");
 

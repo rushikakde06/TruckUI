@@ -3,7 +3,11 @@ import {
   ScatterChart, Scatter, AreaChart, Area, LineChart, Line, ReferenceLine,
   Legend, Cell,
 } from "recharts";
+import { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { analyticsAPI } from "../../services/api";
 import { Brain, TrendingUp, Cpu, Activity, BarChart3, Target, ChevronRight, Info } from "lucide-react";
+
 
 const featureImportance = [
   { feature: "Weather Severity", importance: 0.34, color: "#DC2626" },
@@ -98,8 +102,36 @@ function SectionHeader({ icon: Icon, title, desc, badge }: { icon: any; title: s
 }
 
 export function AnalyticsPage() {
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [performance, setPerformance] = useState<any>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchData = async () => {
+      try {
+        const data = await analyticsAPI.getFleetSummary(token);
+        setPerformance(data);
+        setLoading(false);
+      } catch (e) {
+        console.error("Failed to fetch analytics:", e);
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 28, color: "#0F172A", textAlign: "center" }}>
+        Loading analysis...
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 28, fontFamily: "'Inter', sans-serif" }}>
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
         <div>

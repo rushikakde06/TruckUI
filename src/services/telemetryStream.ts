@@ -2,6 +2,7 @@
 // Polls backend for real vehicle telemetry data
 
 import { vehiclesAPI, telemetryAPI, alertsAPI } from './api';
+// import { useState, useEffect } from 'react';
 
 export interface VehicleRealTimeData {
   vehicle_id: string;
@@ -29,7 +30,7 @@ export interface RealTimeAlert {
 }
 
 class TelemetryStreamService {
-  private pollingInterval: NodeJS.Timeout | null = null;
+  private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private listeners: Map<string, (data: VehicleRealTimeData) => void> = new Map();
   private alertListeners: ((alerts: RealTimeAlert[]) => void)[] = [];
 
