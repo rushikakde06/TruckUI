@@ -4,7 +4,9 @@ import {
   Settings, Bell, Shield, Thermometer, Navigation,
   Brain, Sliders, Save, RefreshCw, CheckCircle2,
   AlertTriangle, Activity, Zap, Database, Lock, Cpu,
+  Key, Copy, Trash2, Plus,
 } from "lucide-react";
+import apiKeyManager from "../../services/apiKeyManager";
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -121,6 +123,8 @@ function SectionCard({ icon: Icon, title, desc, children }: { icon: any; title: 
 
 export function SettingsPage() {
   const [saved, setSaved] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
 
   // Route settings
   const [deviationThreshold, setDeviationThreshold] = useState(2.5);
@@ -393,6 +397,126 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
+      </SectionCard>
+
+      {/* ── API Key Management ────────────────────────────────── */}
+      <SectionCard icon={Key} title="API Key Management" desc="Use API keys for programmatic access to fleet data">
+        <SettingRow label="Your API Key" desc="Keep this secure - anyone with this key can access your data">
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{
+              flex: 1, padding: "8px 12px",
+              background: "#F8FAFC", borderRadius: 6, border: "1px solid rgba(0,0,0,0.08)",
+              fontFamily: "monospace", fontSize: 11, color: "#64748B",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {apiKeyVisible && apiKeyManager.getKey() ? (
+                apiKeyManager.getKey()
+              ) : (
+                apiKeyManager.hasKey() ? "tui_••••••••••••••••••••" : "Not set"
+              )}
+            </div>
+            <button
+              onClick={() => setApiKeyVisible(!apiKeyVisible)}
+              title={apiKeyVisible ? "Hide" : "Show"}
+              style={{
+                height: 32, width: 32,
+                background: "#F8FAFC", border: "none", borderRadius: 6,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {apiKeyVisible ? "🔒" : "👁️"}
+            </button>
+            {apiKeyManager.hasKey() && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(apiKeyManager.getKey() || "");
+                  setSaved(true);
+                  setTimeout(() => setSaved(false), 2000);
+                }}
+                title="Copy API key"
+                style={{
+                  height: 32, width: 32,
+                  background: "linear-gradient(135deg, #2563EB, #7C3AED)", border: "none", borderRadius: 6,
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "white",
+                }}
+              >
+                <Copy size={14} />
+              </button>
+            )}
+          </div>
+        </SettingRow>
+
+        <SettingRow label="Add/Update API Key" desc="Paste your API key from the backend API Keys endpoint">
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type={apiKeyVisible ? "text" : "password"}
+              placeholder="tui_paste_your_api_key_here"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              style={{
+                flex: 1, height: 32, padding: "0 8px",
+                background: "#F8FAFC", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 6,
+                fontSize: 11, fontFamily: "monospace",
+              }}
+            />
+            <button
+              onClick={() => {
+                if (apiKeyInput.trim()) {
+                  apiKeyManager.saveKey(apiKeyInput.trim());
+                  setApiKeyInput("");
+                  setSaved(true);
+                  setTimeout(() => setSaved(false), 3000);
+                }
+              }}
+              style={{
+                height: 32, padding: "0 12px",
+                background: "#16A34A", border: "none", borderRadius: 6,
+                color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              <Plus size={12} /> Save
+            </button>
+          </div>
+        </SettingRow>
+
+        <SettingRow label="Create New API Key" desc="Generate a new API key from the backend dashboard">
+          <a
+            href={`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:8001'}/docs`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              height: 32, padding: "0 12px",
+              background: "linear-gradient(135deg, #2563EB, #7C3AED)", border: "none", borderRadius: 6,
+              color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+              textDecoration: "none",
+            }}
+          >
+            <Plus size={12} /> Open Backend
+          </a>
+        </SettingRow>
+
+        {apiKeyManager.hasKey() && (
+          <SettingRow label="Revoke Existing API Key" desc="Clear the stored API key from this device">
+            <button
+              onClick={() => {
+                apiKeyManager.clearKey();
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+              }}
+              style={{
+                height: 32, padding: "0 12px",
+                background: "#EF4444", border: "none", borderRadius: 6,
+                color: "white", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              <Trash2 size={12} /> Clear
+            </button>
+          </SettingRow>
+        )}
       </SectionCard>
 
       {/* Save button bottom */}

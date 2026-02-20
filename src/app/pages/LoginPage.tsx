@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Brain, Eye, EyeOff, Zap, Shield, Activity, TrendingUp } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
 const features = [
   { icon: Brain, label: "ML Anomaly Detection", desc: "Real-time behavioral analysis" },
@@ -11,17 +12,24 @@ const features = [
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { login, isLoading: loading, error } = useAuth();
   const [email, setEmail] = useState("admin@telematicsai.io");
-  const [password, setPassword] = useState("••••••••••");
+  const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState("");
 
-  const handleLogin = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      navigate("/dashboard");
-    }, 1200);
+  const handleLogin = async () => {
+    setLocalError("");
+    
+    if (!email || !password) {
+      setLocalError("Email and password are required");
+      return;
+    }
+
+    const success = await login(email, password);
+    if (!success) {
+      setLocalError("Invalid email or password");
+    }
   };
 
   return (
@@ -199,6 +207,7 @@ export function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="admin@company.com"
+              disabled={loading}
               style={{
                 width: "100%",
                 height: 46,
@@ -211,6 +220,7 @@ export function LoginPage() {
                 outline: "none",
                 boxSizing: "border-box",
                 transition: "border-color 0.2s",
+                opacity: loading ? 0.6 : 1,
               }}
               onFocus={e => e.target.style.borderColor = "rgba(37,99,235,0.6)"}
               onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
@@ -228,6 +238,7 @@ export function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••••••"
+                disabled={loading}
                 style={{
                   width: "100%",
                   height: 46,
@@ -240,15 +251,18 @@ export function LoginPage() {
                   outline: "none",
                   boxSizing: "border-box",
                   transition: "border-color 0.2s",
+                  opacity: loading ? 0.6 : 1,
                 }}
                 onFocus={e => e.target.style.borderColor = "rgba(37,99,235,0.6)"}
                 onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
               />
               <button
                 onClick={() => setShowPass(!showPass)}
+                disabled={loading}
                 style={{
                   position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                  background: "none", border: "none", cursor: "pointer", color: "#64748B", padding: 0,
+                  background: "none", border: "none", cursor: loading ? "not-allowed" : "pointer", color: "#64748B", padding: 0,
+                  opacity: loading ? 0.5 : 1,
                 }}
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -258,6 +272,23 @@ export function LoginPage() {
               <span style={{ color: "#2563EB", fontSize: 12, cursor: "pointer" }}>Forgot password?</span>
             </div>
           </div>
+
+          {/* Error message */}
+          {(localError || error) && (
+            <div style={{
+              marginBottom: 16,
+              padding: "12px",
+              background: "rgba(220, 38, 38, 0.1)",
+              border: "1px solid rgba(220, 38, 38, 0.3)",
+              borderRadius: 8,
+              color: "#FCA5A5",
+              fontSize: 13,
+              position: "relative",
+              zIndex: 1,
+            }}>
+              {localError || error}
+            </div>
+          )}
 
           {/* Login button */}
           <button

@@ -8,6 +8,8 @@ import {
   ArrowUp, ChevronRight, Brain, Zap,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { vehiclesAPI, analyticsAPI } from "../../services/api";
 
 const tempForecastData = [
   { time: "08:00", actual: 21, predicted: null },
@@ -205,19 +207,135 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function DashboardPage() {
+  const { token } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Update time
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch data
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchData = async () => {
+      try {
+        const vehiclesData = await vehiclesAPI.listVehicles(token, 0, 50);
+        setVehicles(vehiclesData);
+
+        // Try to fetch analytics if available
+        try {
+          const analyticsData = await analyticsAPI.getFleetSummary(token);
+          setAnalytics(analyticsData);
+        } catch (e) {
+          console.warn("Analytics data not available");
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const tempForecastData = [
+    { time: "08:00", actual: 21, predicted: null },
+    { time: "08:30", actual: 23, predicted: null },
+    { time: "09:00", actual: 22, predicted: null },
+    { time: "09:30", actual: 25, predicted: null },
+    { time: "10:00", actual: 26, predicted: 26 },
+    { time: "10:30", actual: null, predicted: 29 },
+    { time: "11:00", actual: null, predicted: 33 },
+    { time: "11:30", actual: null, predicted: 37 },
+    { time: "12:00", actual: null, predicted: 40 },
+  ];
+
+  const riskTrendData = [
+    { time: "06:00", risk: 34, baseline: 50 },
+    { time: "07:00", risk: 42, baseline: 50 },
+    { time: "07:30", risk: 38, baseline: 50 },
+    { time: "08:00", risk: 55, baseline: 50 },
+    { time: "08:30", risk: 61, baseline: 50 },
+    { time: "09:00", risk: 58, baseline: 50 },
+    { time: "09:30", risk: 69, baseline: 50 },
+    { time: "10:00", risk: 78, baseline: 50 },
+    { time: "10:30", risk: 82, baseline: 50 },
+  ];
+
+  const avgRisk = vehicles.length > 0
+    ? Math.round(vehicles.reduce((sum, v) => sum + (v.risk_score || 0), 0) / vehicles.length)
+    : 0;
+
+  const activeAlerts = analytics?.active_alerts || 0;
+  const onTimeRate = analytics?.on_time_delivery_rate || 0;
+
+  const insights = [
+    {
+      icon: Thermometer,
+      color: "#DC2626",
+      bg: "rgba(220,38,38,0.08)",
+      border: "rgba(220,38,38,0.2)",
+      title: "Temperature Monitoring",
+      desc: `Fleet average temp: ${analytics?.avg_temperature || "N/A"}°C - performing normally`,
+      badge: `${vehicles.length} Vehicles`,
+      badgeColor: "#DC2626",
+    },
+    {
+      icon: CloudRain,
+      color: "#F59E0B",
+      bg: "rgba(245,158,11,0.08)",
+      border: "rgba(245,158,11,0.2)",
+      title: "Weather Impact",
+      desc: "Monitoring weather patterns across all active routes",
+      badge: "Live Data",
+      badgeColor: "#F59E0B",
+    },
+    {
+      icon: Navigation,
+      color: "#7C3AED",
+      bg: "rgba(124,58,237,0.08)",
+      border: "rgba(124,58,237,0.2)",
+      title: "Route Optimization",
+      desc: "AI analyzing real-time traffic and weather for optimal routes",
+      badge: "AI Active",
+      badgeColor: "#7C3AED",
+    },
+    {
+      icon: Zap,
+      color: "#2563EB",
+      bg: "rgba(37,99,235,0.08)",
+      border: "rgba(37,99,235,0.2)",
+      title: "System Status",
+      desc: "All systems operational - real-time monitoring active",
+      badge: "Normal",
+      badgeColor: "#2563EB",
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ padding: "28px", color: "white", textAlign: "center" }}>
+        Loading dashboard...
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 28, fontFamily: "'Inter', sans-serif" }}>
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", margin: 0, letterSpacing: "-0.5px" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "white", margin: 0, letterSpacing: "-0.5px" }}>
             AI Control Center
           </h1>
           <p style={{ color: "#64748B", fontSize: 13, margin: "4px 0 0" }}>
@@ -228,10 +346,10 @@ export function DashboardPage() {
           <button style={{
             height: 36,
             padding: "0 16px",
-            background: "rgba(37,99,235,0.08)",
+            background: "rgba(37,99,235,0.1)",
             border: "1px solid rgba(37,99,235,0.2)",
             borderRadius: 8,
-            color: "#2563EB",
+            color: "#60A5FA",
             fontSize: 12,
             fontWeight: 600,
             cursor: "pointer",
@@ -253,7 +371,7 @@ export function DashboardPage() {
             display: "flex", alignItems: "center", gap: 6,
           }}>
             <Bell size={14} />
-            3 Active Alerts
+            {activeAlerts} Active Alerts
           </button>
         </div>
       </div>
@@ -277,7 +395,7 @@ export function DashboardPage() {
           </div>
           <div style={{ color: "#94A3B8", fontSize: 12, marginBottom: 20 }}>Predicted Operational Risk</div>
 
-          <CircularRiskScore score={78} />
+          <CircularRiskScore score={avgRisk} />
 
           <div style={{
             marginTop: 20, padding: "12px 20px",
@@ -289,16 +407,16 @@ export function DashboardPage() {
             boxSizing: "border-box",
           }}>
             <div style={{ color: "#DC2626", fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 4 }}>
-              ⚠ CRITICAL THRESHOLD APPROACHING
+              ⚠ REAL-TIME MONITORING
             </div>
-            <div style={{ color: "#94A3B8", fontSize: 11 }}>Risk increased +23% in last 2h</div>
+            <div style={{ color: "#94A3B8", fontSize: 11 }}>Fleet-wide risk assessment</div>
           </div>
 
           <div style={{ marginTop: 16, width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             {[
               { label: "Model", value: "v3.2.1", color: "#64748B" },
               { label: "Accuracy", value: "94.2%", color: "#16A34A" },
-              { label: "Updated", value: "2m ago", color: "#64748B" },
+              { label: "Updated", value: "Live", color: "#64748B" },
             ].map((item, i) => (
               <div key={i} style={{ textAlign: "center" }}>
                 <div style={{ color: item.color, fontSize: 12, fontWeight: 700 }}>{item.value}</div>
@@ -313,66 +431,65 @@ export function DashboardPage() {
           <MetricCard
             icon={Bell}
             label="Active AI Alerts"
-            value="12"
-            sub="↑ 3 new in last hour"
+            value={activeAlerts.toString()}
+            sub="Real-time monitoring"
             color="#DC2626"
             bg="rgba(220,38,38,0.08)"
             trend="up"
-            trendValue="+25%"
+            trendValue={"+25%"}
           />
           <MetricCard
             icon={TrendingUp}
-            label="Delay Probability"
-            value="73%"
-            sub="Storm impact model"
+            label="On-Time Delivery"
+            value={`${(onTimeRate * 100).toFixed(0)}%`}
+            sub="Fleet performance"
             color="#F59E0B"
             bg="rgba(245,158,11,0.08)"
             trend="up"
-            trendValue="+18%"
+            trendValue={"+5%"}
           />
           <MetricCard
             icon={Thermometer}
-            label="Temp Breach (30 min)"
-            value="+2.4°"
-            sub="Above safety threshold"
+            label="Avg Fleet Temp"
+            value={`${analytics?.avg_temperature || "N/A"}°C`}
+            sub="Within normal range"
             color="#7C3AED"
             bg="rgba(124,58,237,0.08)"
-            trend="up"
-            trendValue="Critical"
+            trend="down"
+            trendValue={"-2.1°C"}
           />
           <MetricCard
             icon={Activity}
-            label="Anomaly Score"
-            value="8.3"
-            sub="Behavioral deviation"
+            label="Avg Risk Score"
+            value={`${avgRisk}/100`}
+            sub="Fleet-wide assessment"
             color="#2563EB"
             bg="rgba(37,99,235,0.08)"
             trend="up"
-            trendValue="+1.2"
+            trendValue={"+3.2"}
           />
         </div>
 
         {/* Secondary stats row */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
           {[
-            { label: "Vehicles On Route", value: "24", change: "+2", icon: "🚛", color: "#16A34A" },
-            { label: "Avg Fleet Temp", value: "22.4°C", change: "Normal", icon: "🌡️", color: "#16A34A" },
-            { label: "Geofence Violations", value: "3", change: "Active", icon: "📍", color: "#F59E0B" },
-            { label: "Predictions Made", value: "1,847", change: "Today", icon: "🧠", color: "#2563EB" },
+            { label: "Vehicles On Route", value: vehicles.length.toString(), change: "Active", icon: "🚛", color: "#16A34A" },
+            { label: "Avg Fleet Temp", value: `${analytics?.avg_temperature || "N/A"}°C`, change: "Normal", icon: "🌡️", color: "#16A34A" },
+            { label: "Active Alerts", value: activeAlerts.toString(), change: "Critical", icon: "📍", color: "#F59E0B" },
+            { label: "Fleet Status", value: "Online", change: "All systems", icon: "🧠", color: "#2563EB" },
           ].map((item, i) => (
             <div key={i} style={{
-              background: "white",
+              background: "rgba(255,255,255,0.02)",
               borderRadius: 10,
               padding: "14px 16px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              border: "1px solid rgba(0,0,0,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
               display: "flex",
               alignItems: "center",
               gap: 12,
             }}>
               <div style={{ fontSize: 22 }}>{item.icon}</div>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#0F172A", lineHeight: 1 }}>{item.value}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "white", lineHeight: 1 }}>{item.value}</div>
                 <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>{item.label}</div>
                 <div style={{ fontSize: 10, color: item.color, fontWeight: 600, marginTop: 1 }}>{item.change}</div>
               </div>
@@ -385,24 +502,23 @@ export function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 340px", gap: 20, marginBottom: 20 }}>
         {/* Temperature Forecast Chart */}
         <div style={{
-          background: "white",
+          background: "rgba(255,255,255,0.02)",
           borderRadius: 12,
           padding: "20px 24px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
-          border: "1px solid rgba(0,0,0,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Temperature Forecast</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>Temperature Forecast</div>
               <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>Actual + AI predicted projection</div>
             </div>
             <div style={{
-              background: "rgba(124,58,237,0.08)",
+              background: "rgba(124,58,237,0.1)",
               border: "1px solid rgba(124,58,237,0.2)",
               borderRadius: 6,
               padding: "3px 10px",
               fontSize: 10,
-              color: "#7C3AED",
+              color: "#A78BFA",
               fontWeight: 700,
             }}>
               LSTM Model
@@ -410,7 +526,7 @@ export function DashboardPage() {
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={tempForecastData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} unit="°C" />
               <Tooltip content={<CustomTooltip />} />
@@ -433,24 +549,23 @@ export function DashboardPage() {
 
         {/* Risk Trend Chart */}
         <div style={{
-          background: "white",
+          background: "rgba(255,255,255,0.02)",
           borderRadius: 12,
           padding: "20px 24px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
-          border: "1px solid rgba(0,0,0,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>AI Risk Trend</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>AI Risk Trend</div>
               <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>Composite risk score over time</div>
             </div>
             <div style={{
-              background: "rgba(220,38,38,0.08)",
+              background: "rgba(220,38,38,0.1)",
               border: "1px solid rgba(220,38,38,0.2)",
               borderRadius: 6,
               padding: "3px 10px",
               fontSize: 10,
-              color: "#DC2626",
+              color: "#FCA5A5",
               fontWeight: 700,
             }}>
               ↑ RISING
@@ -464,7 +579,7 @@ export function DashboardPage() {
                   <stop offset="95%" stopColor="#DC2626" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} domain={[0, 100]} />
               <Tooltip content={<CustomTooltip />} />
@@ -576,71 +691,75 @@ export function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         {/* Fleet Status */}
         <div style={{
-          background: "white",
+          background: "rgba(255,255,255,0.02)",
           borderRadius: 12,
           padding: "20px 24px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
-          border: "1px solid rgba(0,0,0,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
         }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", marginBottom: 16 }}>Fleet Status Overview</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 16 }}>Fleet Status Overview</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { id: "TRK-001", driver: "J. Martinez", route: "LA → SF", risk: 78, status: "High Risk", color: "#DC2626", statusBg: "rgba(220,38,38,0.08)" },
-              { id: "TRK-007", driver: "S. Chen", route: "SF → Portland", risk: 42, status: "Normal", color: "#16A34A", statusBg: "rgba(22,163,74,0.08)" },
-              { id: "TRK-003", driver: "M. Johnson", route: "LA → Vegas", risk: 61, status: "Elevated", color: "#F59E0B", statusBg: "rgba(245,158,11,0.08)" },
-              { id: "TRK-011", driver: "A. Williams", route: "SD → Fresno", risk: 29, status: "Normal", color: "#16A34A", statusBg: "rgba(22,163,74,0.08)" },
-            ].map((v, i) => (
-              <div key={i} style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "10px 12px",
-                borderRadius: 8,
-                background: "#F8FAFC",
-                border: "1px solid rgba(0,0,0,0.04)",
-              }}>
-                <div style={{
-                  width: 32, height: 32,
-                  background: `${v.color}15`,
+            {vehicles.slice(0, 4).map((v, i) => {
+              const riskColor = 
+                (v.risk_score || 0) > 70 ? "#DC2626" :
+                (v.risk_score || 0) > 40 ? "#F59E0B" : "#16A34A";
+              const riskStatus =
+                (v.risk_score || 0) > 70 ? "High Risk" :
+                (v.risk_score || 0) > 40 ? "Elevated" : "Normal";
+              const statusBg =
+                (v.risk_score || 0) > 70 ? "rgba(220,38,38,0.1)" :
+                (v.risk_score || 0) > 40 ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.1)";
+              return (
+                <div key={i} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 12px",
                   borderRadius: 8,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 14,
-                }}>🚛</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#0F172A" }}>{v.id}</div>
-                  <div style={{ fontSize: 10, color: "#94A3B8" }}>{v.driver} · {v.route}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: v.color }}>{v.risk}</div>
-                  <div style={{ fontSize: 9, color: "#94A3B8" }}>Risk Score</div>
-                </div>
-                <div style={{
-                  padding: "3px 8px",
-                  borderRadius: 5,
-                  background: v.statusBg,
-                  color: v.color,
-                  fontSize: 10,
-                  fontWeight: 700,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.1)",
                 }}>
-                  {v.status}
+                  <div style={{
+                    width: 32, height: 32,
+                    background: `${riskColor}20`,
+                    borderRadius: 8,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14,
+                  }}>🚛</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "white" }}>{v.vehicle_number}</div>
+                    <div style={{ fontSize: 10, color: "#94A3B8" }}>{v.driver_name || "N/A"} · Free</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: riskColor }}>{v.risk_score || 0}</div>
+                    <div style={{ fontSize: 9, color: "#94A3B8" }}>Risk Score</div>
+                  </div>
+                  <div style={{
+                    padding: "3px 8px",
+                    borderRadius: 5,
+                    background: statusBg,
+                    color: riskColor,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}>
+                    {riskStatus}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Model Performance summary */}
         <div style={{
-          background: "white",
+          background: "rgba(255,255,255,0.02)",
           borderRadius: 12,
           padding: "20px 24px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06)",
-          border: "1px solid rgba(0,0,0,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>AI Model Performance</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "white" }}>AI Model Performance</div>
             <div style={{
-              background: "rgba(22,163,74,0.08)",
+              background: "rgba(22,163,74,0.1)",
               color: "#16A34A",
               fontSize: 10,
               fontWeight: 700,
@@ -663,7 +782,7 @@ export function DashboardPage() {
                   <span style={{ fontSize: 11, color: "#64748B" }}>{m.label}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: m.color }}>{m.value}</span>
                 </div>
-                <div style={{ height: 5, background: "#F1F5F9", borderRadius: 3 }}>
+                <div style={{ height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
                   <div style={{
                     height: "100%",
                     width: `${m.bar}%`,
@@ -676,12 +795,12 @@ export function DashboardPage() {
           </div>
           <div style={{
             padding: "12px",
-            background: "rgba(37,99,235,0.04)",
-            border: "1px solid rgba(37,99,235,0.1)",
+            background: "rgba(37,99,235,0.1)",
+            border: "1px solid rgba(37,99,235,0.2)",
             borderRadius: 8,
           }}>
-            <div style={{ fontSize: 11, color: "#64748B", lineHeight: 1.6 }}>
-              <span style={{ color: "#2563EB", fontWeight: 600 }}>System combines</span> anomaly detection, LSTM forecasting, and gradient boosting classification to generate proactive risk intelligence across the entire fleet.
+            <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.6 }}>
+              <span style={{ color: "#60A5FA", fontWeight: 600 }}>System combines</span> anomaly detection, LSTM forecasting, and gradient boosting classification to generate proactive risk intelligence across the entire fleet.
             </div>
           </div>
         </div>
