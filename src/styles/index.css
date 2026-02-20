@@ -1,0 +1,75 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+@keyframes livePulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+  70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+@keyframes aiGlow {
+  0%, 100% { box-shadow: 0 0 30px rgba(37, 99, 235, 0.35), 0 0 60px rgba(124, 58, 237, 0.2), 0 20px 60px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 50px rgba(37, 99, 235, 0.55), 0 0 100px rgba(124, 58, 237, 0.35), 0 20px 60px rgba(0,0,0,0.3); }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(110%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+
+@keyframes networkPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes truckMove {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(6px); }
+  100% { transform: translateX(0px); }
+}
+
+.live-pulse {
+  animation: livePulse 2s infinite;
+}
+
+.ai-glow {
+  animation: aiGlow 3s ease-in-out infinite;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.truck-move {
+  animation: truckMove 2s ease-in-out infinite;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+}
