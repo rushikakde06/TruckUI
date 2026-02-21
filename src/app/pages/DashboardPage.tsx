@@ -9,31 +9,10 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { vehiclesAPI, analyticsAPI } from "../../services/api";
+import { vehiclesAPI, analyticsAPI, telemetryAPI } from "../../services/api";
 
-const tempForecastData = [
-  { time: "08:00", actual: 21, predicted: null },
-  { time: "08:30", actual: 23, predicted: null },
-  { time: "09:00", actual: 22, predicted: null },
-  { time: "09:30", actual: 25, predicted: null },
-  { time: "10:00", actual: 26, predicted: 26 },
-  { time: "10:30", actual: null, predicted: 29 },
-  { time: "11:00", actual: null, predicted: 33 },
-  { time: "11:30", actual: null, predicted: 37 },
-  { time: "12:00", actual: null, predicted: 40 },
-];
 
-const riskTrendData = [
-  { time: "06:00", risk: 34, baseline: 50 },
-  { time: "07:00", risk: 42, baseline: 50 },
-  { time: "07:30", risk: 38, baseline: 50 },
-  { time: "08:00", risk: 55, baseline: 50 },
-  { time: "08:30", risk: 61, baseline: 50 },
-  { time: "09:00", risk: 58, baseline: 50 },
-  { time: "09:30", risk: 69, baseline: 50 },
-  { time: "10:00", risk: 78, baseline: 50 },
-  { time: "10:30", risk: 82, baseline: 50 },
-];
+
 
 const insights = [
   {
@@ -219,41 +198,62 @@ export function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch data
+  const [tempForecastData, setTempForecastData] = useState<any[]>([]);
+  const [riskTrendData, setRiskTrendData] = useState<any[]>([]);
+
+  // Fetch data + auto-refresh every 10 s
   useEffect(() => {
     if (!token) return;
 
     const fetchData = async () => {
       try {
-        const vehiclesData = await vehiclesAPI.listVehicles(token, 0, 50);
-        setVehicles(vehiclesData);
+        // 1. Live fleet (vehicles + latest telemetry + AI predictions)
+        try {
+          const fleetData = await telemetryAPI.getLiveFleet(token);
+          const fleetVehicles = fleetData.vehicles || [];
+          setVehicles(fleetVehicles);
+        } catch (e) {
+          // fallback: just vehicle list
+          const vehiclesData = await vehiclesAPI.listVehicles(token, 0, 50);
+          setVehicles(vehiclesData);
+        }
 
-        // Fetch fleet summary
+        // 2. Fleet summary (active alerts, on-time rate, avg temp, vehicle count)
         try {
           const analyticsData = await analyticsAPI.getFleetSummary(token);
           setAnalytics(analyticsData);
         } catch (e) {
-          console.warn("Fleet summary not available");
+          console.warn("Fleet summary not available", e);
         }
 
-        // Fetch trends
+        // 3. Temperature trends (real DB data)
         try {
-          const tempTrends = await analyticsAPI.getTemperatureTrends(token, "");
-          setTempForecastData(tempTrends);
+          const tempTrends = await analyticsAPI.getTemperatureTrends(token, undefined, 6);
+          if (tempTrends && tempTrends.length > 0) {
+            setTempForecastData(tempTrends);
+          }
         } catch (e) {
-          console.warn("Temperature trends not available");
+          console.warn("Temperature trends not available", e);
         }
 
+        // 4. Risk trend (real hourly data)
         try {
-          // If we had a risk-trend endpoint, we'd call it here
-          // For now let's use some calculated data or mock if needed
+          const riskData = await analyticsAPI.getRiskTrend(token, 12);
+          if (riskData?.trend && riskData.trend.length > 0) {
+            const formatted = riskData.trend.map((row: any) => ({
+              time: new Date(row.hour).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              risk: Math.round(row.avg_risk_score || 0),
+              baseline: 50,
+            }));
+            setRiskTrendData(formatted);
+          }
         } catch (e) {
-          console.warn("Risk metrics not available");
+          console.warn("Risk trend not available", e);
         }
 
         setLoading(false);
       } catch (error) {
-        console.error("Failed to fetch data:", error);
+        console.error("Failed to fetch dashboard data:", error);
         setLoading(false);
       }
     };
@@ -263,22 +263,10 @@ export function DashboardPage() {
     return () => clearInterval(interval);
   }, [token]);
 
-  const [tempForecastData, setTempForecastData] = useState<any[]>([]);
-  const [riskTrendData, setRiskTrendData] = useState<any[]>([
-    { time: "06:00", risk: 34, baseline: 50 },
-    { time: "07:00", risk: 42, baseline: 50 },
-    { time: "07:30", risk: 38, baseline: 50 },
-    { time: "08:00", risk: 55, baseline: 50 },
-    { time: "08:30", risk: 61, baseline: 50 },
-    { time: "09:00", risk: 58, baseline: 50 },
-    { time: "09:30", risk: 69, baseline: 50 },
-    { time: "10:00", risk: 78, baseline: 50 },
-    { time: "10:30", risk: 82, baseline: 50 },
-  ]);
-
-  const avgRisk = vehicles.length > 0
-    ? Math.round(vehicles.reduce((sum, v) => sum + (v.risk_score || 0), 0) / vehicles.length)
-    : 0;
+  const avgRisk = analytics?.avg_risk_score
+    ?? (vehicles.length > 0
+      ? Math.round(vehicles.reduce((sum: number, v: any) => sum + (v.risk_score || 0), 0) / vehicles.length)
+      : 0);
 
   const activeAlerts = analytics?.active_alerts || 0;
   const onTimeRate = analytics?.on_time_delivery_rate || 0;

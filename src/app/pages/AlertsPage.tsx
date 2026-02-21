@@ -27,6 +27,7 @@ export function AlertsPage() {
   const { token } = useAuth();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("All Severities");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -36,15 +37,21 @@ export function AlertsPage() {
 
   // Fetch alerts from backend
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      setError("Please login to view alerts");
+      setLoading(false);
+      return;
+    }
 
+    setError(null);
     const fetchAlerts = async () => {
       try {
         const data = await alertsAPI.listAlerts(token, 0, 100);
         setAlerts(data);
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch alerts:", error);
+        setError(error?.message || "Failed to load alerts. Please try again.");
         setLoading(false);
       }
     };
@@ -126,6 +133,17 @@ export function AlertsPage() {
     return (
       <div style={{ padding: "28px", color: "white", textAlign: "center" }}>
         Loading alerts...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "28px", color: "white", textAlign: "center" }}>
+        <p style={{ color: "#ef4444", fontSize: 16, marginBottom: 16 }}>⚠️ {error}</p>
+        <p style={{ color: "#94a3b8", fontSize: 14 }}>
+          {error.includes("login") ? "Redirecting to login..." : "Please try refreshing the page."}
+        </p>
       </div>
     );
   }

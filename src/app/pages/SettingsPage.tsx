@@ -463,6 +463,11 @@ export function SettingsPage() {
             <button
               onClick={() => {
                 if (apiKeyInput.trim()) {
+                  // Validate API key format
+                  if (!apiKeyInput.trim().startsWith("tui_")) {
+                    alert("⚠️ Invalid API Key!\n\nAPI keys must start with 'tui_'\n\nDid you paste a JWT token by mistake? JWT tokens are handled automatically by your login session. You only need to save API keys if you want programmatic access.\n\nTo create an API key:\n1. Click 'Open Backend'\n2. Go to /docs\n3. Use the POST /api-keys/ endpoint");
+                    return;
+                  }
                   apiKeyManager.saveKey(apiKeyInput.trim());
                   setApiKeyInput("");
                   setSaved(true);
