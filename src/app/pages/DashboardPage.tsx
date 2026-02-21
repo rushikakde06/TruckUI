@@ -8,6 +8,7 @@ import {
   ArrowUp, ChevronRight, Brain, Zap,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { vehiclesAPI, analyticsAPI, telemetryAPI } from "../../services/api";
 
@@ -186,13 +187,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Update time
+  // Update timeAI Control Center
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
@@ -328,7 +330,7 @@ export function DashboardPage() {
       {/* Page header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "white", margin: 0, letterSpacing: "-0.5px" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "black", margin: 0, letterSpacing: "-0.5px" }}>
             AI Control Center
           </h1>
           <p style={{ color: "#64748B", fontSize: 13, margin: "4px 0 0" }}>
@@ -351,18 +353,21 @@ export function DashboardPage() {
             <Brain size={14} />
             Run AI Analysis
           </button>
-          <button style={{
-            height: 36,
-            padding: "0 16px",
-            background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-            border: "none",
-            borderRadius: 8,
-            color: "white",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 6,
-          }}>
+          <button 
+            onClick={() => navigate("/dashboard/alerts")}
+            style={{
+              height: 36,
+              padding: "0 16px",
+              background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+              border: "none",
+              borderRadius: 8,
+              color: "white",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
             <Bell size={14} />
             {activeAlerts} Active Alerts
           </button>
